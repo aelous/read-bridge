@@ -87,6 +87,16 @@ function defaultPromptOutputOption(): PromptOption[] {
       id: generateUUID(),
       name: 'default chat',
       prompt: INPUT_PROMPT.CHAT_PROMPT,
+    },
+    {
+      id: generateUUID(),
+      name: 'Translation',
+      prompt: INPUT_PROMPT.TRANSLATION_PROMPT,
+    },
+    {
+      id: generateUUID(),
+      name: 'General Chat',
+      prompt: INPUT_PROMPT.GENERAL_CHAT_PROMPT,
     }
   ]
 }

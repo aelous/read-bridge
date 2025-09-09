@@ -84,9 +84,35 @@ Rewrite complex sentences into simpler expressions, maintaining the original mea
 - Make it understandable for lower-level language learners
 `
 
-const CHAT_PROMPT = `
-You are a helpful reading assistant for n+1 language learning through reading. 
-Help users understand book content that's slightly above their current language level. Explain unfamiliar words or phrases when asked, provide simple clarifications of complex passages, and engage in natural discussion about the text to reinforce comprehension while keeping conversations encouraging and supportive.
+
+const CHAT_PROMPT = `你的任务是将输入的中文文本翻译成英文，并解释其中雅思级别难度及以上的单词释义。
+以下是需要处理的中文文本：
+<chinese_text>
+{{CHINESE_TEXT}}
+</chinese_text>
+在进行翻译和解释单词时，请遵循以下指南：
+1. 确保翻译准确、自然，符合英语表达习惯。
+2. 仔细识别文本中雅思级别难度及以上的单词。可以参考常见的雅思词汇表来进行判断。
+3. 对于识别出的雅思级别难度及以上的单词，给出其英文释义和常见用法示例。
+4. 输出内容尽量简洁。
+请在<翻译>标签内写下翻译后的英文内容，在<word>标签内写下雅思级别难度及以上单词的释义(只要在句子的中文含义即可)。示例如下：
+<翻译>
+<word>[在此写下雅思级别难度及以上单词的释义和用法示例，每个单词一行，格式为：单词 : 英文释义 ]`
+
+const TRANSLATION_PROMPT = `
+你是一个专业的翻译助手。请将用户提供的句子翻译成中文。
+要求：
+1. 只需返回翻译结果，不要添加任何解释或额外内容
+2. 保持原文的语气和风格
+3. 确保翻译准确、自然、符合中文表达习惯
+4. 如果原文已经是中文，则翻译成英文
+`
+
+const GENERAL_CHAT_PROMPT = `
+You are a helpful reading assistant for n+1 language learning through reading.
+Help users understand book content that's slightly above their current language level.
+Explain unfamiliar words or phrases when asked, provide simple clarifications of complex passages,
+and engage in natural discussion about the text to reinforce comprehension while keeping conversations encouraging and supportive.
 `
 
 const MD_SENTENCE_ANALYZING = `
@@ -142,6 +168,8 @@ export const INPUT_PROMPT = {
   EXTRACT_KEY_WORDS,
   SENTENCE_STRUCTURE_ANALYSIS,
   CHAT_PROMPT,
+  TRANSLATION_PROMPT,
+  GENERAL_CHAT_PROMPT,
   MD_SENTENCE_ANALYZING,
   MD_SENTENCE_SIMPLIFICATION
 } as const;

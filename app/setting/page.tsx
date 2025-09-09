@@ -4,11 +4,12 @@ import { useRef } from "react";
 import { Layout, Menu, theme } from "antd";
 import type { MenuProps } from "antd";
 import { StarIcon } from "@/assets/icon";
-import { AppstoreFilled, AlignLeftOutlined, OrderedListOutlined, SoundOutlined, FileWordOutlined } from "@ant-design/icons";
+import { AppstoreFilled, AlignLeftOutlined, OrderedListOutlined, SoundOutlined, FileWordOutlined, TranslationOutlined } from "@ant-design/icons";
 import React from "react";
 import { useTranslation } from "@/i18n/useTranslation";
 
 import { AiSection, DefaultModelSection, PromptSection, SentenceProcessingSection, TTSSection, WordProcessingSection } from "./components";
+import TranslationSection from "./components/TranslationSection";
 
 const { Sider, Content } = Layout;
 
@@ -46,6 +47,12 @@ export default function Setting() {
       icon: <FileWordOutlined style={{ fontSize: 24 }} />,
       label: t("settings.wordConfig"),
       content: <WordProcessingSection />
+    },
+    {
+      key: 'translation',
+      icon: <TranslationOutlined style={{ fontSize: 24 }} />,
+      label: "翻译设置",
+      content: <TranslationSection />
     },
     {
       key: 'tts',
