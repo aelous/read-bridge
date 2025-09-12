@@ -9,6 +9,11 @@ import { LoadingOutlined } from "@ant-design/icons"
 import type { ChatCompletionMessageParam } from "openai/resources/index.mjs"
 import { INPUT_PROMPT } from "@/constants/prompt"
 import { useTranslationStore } from "@/store/useTranslationStore"
+import {
+  getTranslation as getTranslationFromDB,
+  saveTranslation as saveTranslationToDB,
+  getBatchTranslations
+} from "@/utils/db"
 
 
 export default function ReadArea({ book, readingProgress }: { book: Book, readingProgress: ReadingProgress }) {
@@ -101,7 +106,7 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
     };
   }, [book.id, readingProgress.currentLocation.chapterIndex, lines]);
 
-  // 获取单个句子的翻译
+  // 获取单个句子的翻译（集成数据库缓存）
   const getTranslation = useCallback(async (sentence: string, index: number) => {
     const chatModel = useLLMStore.getState().chatModel;
     if (!chatModel) {
@@ -109,7 +114,7 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
       return;
     }
 
-    // 先检查是否已有翻译，使用回调函数确保获取最新状态
+    // 先检查内存中是否已有翻译
     const hasTranslation = await new Promise<boolean>((resolve) => {
       setTranslations(prev => {
         resolve(prev.has(index));
@@ -138,6 +143,15 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
     }
 
     try {
+      // 先尝试从数据库获取缓存的翻译
+      const cachedTranslation = await getTranslationFromDB(book.id, sentence);
+      if (cachedTranslation) {
+        console.log('Translation loaded from DB cache:', sentence.substring(0, 30) + '...');
+        setTranslations(prev => new Map(prev).set(index, cachedTranslation.translatedText));
+        return;
+      }
+
+      // 如果数据库没有缓存，调用 LLM
       const client = createLLMClient(chatModel);
       
       // 构建消息
@@ -155,8 +169,14 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
       // 获取翻译
       const translation = await client.completions(messages, '');
 
-      // 保存翻译结果
+      // 保存翻译结果到内存
       setTranslations(prev => new Map(prev).set(index, translation));
+      
+      // 保存到数据库
+      if (translation && translation !== sentence) {
+        await saveTranslationToDB(book.id, sentence, translation);
+        console.log('Translation saved to DB:', sentence.substring(0, 30) + '...');
+      }
     } catch (error) {
       console.error(`Translation error for index ${index}:`, error);
     } finally {
@@ -167,9 +187,9 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
         return newSet;
       });
     }
-  }, []);
+  }, [book.id]);
 
-  // 处理行点击
+  // 处理行点击（优化批量翻译）
   const handleLineClick = useCallback((index: number) => {
     setSelectedLine((prev) => {
       EventEmitter.emit(EVENT_NAMES.SEND_LINE_INDEX, index);
@@ -187,13 +207,13 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
           // 如果未显示，则显示并翻译当前句子及下面的行
           newVisible.add(index);
           
-          // 收集需要翻译的句子索引
-          const indicesToTranslate: number[] = [];
+          // 收集需要翻译的句子
+          const sentencesToTranslate: { index: number; text: string }[] = [];
           
           // 添加当前句子
           const sentence = lines[index];
           if (sentence && sentence.trim()) {
-            indicesToTranslate.push(index);
+            sentencesToTranslate.push({ index, text: sentence });
           }
           
           // 如果启用批量翻译，添加下面的行
@@ -204,21 +224,53 @@ export default function ReadArea({ book, readingProgress }: { book: Book, readin
                 const nextSentence = lines[nextIndex];
                 if (nextSentence && nextSentence.trim()) {
                   newVisible.add(nextIndex);
-                  indicesToTranslate.push(nextIndex);
+                  sentencesToTranslate.push({ index: nextIndex, text: nextSentence });
                 }
               }
             }
           }
           
-          // 异步翻译所有句子
-          Promise.all(
-            indicesToTranslate.map(async (idx) => {
-              const sentenceToTranslate = lines[idx];
-              if (sentenceToTranslate && sentenceToTranslate.trim()) {
-                await getTranslation(sentenceToTranslate, idx);
+          // 批量处理翻译（先查询数据库，再调用 LLM）
+          const processBatchTranslations = async () => {
+            // 先批量查询数据库
+            const texts = sentencesToTranslate.map(s => s.text);
+            const cachedTranslations = await getBatchTranslations(book.id, texts);
+            
+            // 分离已缓存和需要翻译的句子
+            const needTranslation: typeof sentencesToTranslate = [];
+            
+            for (const item of sentencesToTranslate) {
+              // 检查内存缓存
+              const hasInMemory = await new Promise<boolean>(resolve => {
+                setTranslations(prev => {
+                  resolve(prev.has(item.index));
+                  return prev;
+                });
+              });
+              
+              if (hasInMemory) {
+                continue; // 内存中已有，跳过
               }
-            })
-          ).catch(error => {
+              
+              // 检查数据库缓存
+              if (cachedTranslations.has(item.text)) {
+                const translation = cachedTranslations.get(item.text)!;
+                setTranslations(prev => new Map(prev).set(item.index, translation));
+                console.log('Batch loaded from DB:', item.text.substring(0, 30) + '...');
+              } else {
+                needTranslation.push(item);
+              }
+            }
+            
+            // 对需要翻译的句子调用 LLM
+            await Promise.all(
+              needTranslation.map(async (item) => {
+                await getTranslation(item.text, item.index);
+              })
+            );
+          };
+          
+          processBatchTranslations().catch(error => {
             console.error('Batch translation error:', error);
           });
         }

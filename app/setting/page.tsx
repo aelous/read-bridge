@@ -4,12 +4,14 @@ import { useRef } from "react";
 import { Layout, Menu, theme } from "antd";
 import type { MenuProps } from "antd";
 import { StarIcon } from "@/assets/icon";
-import { AppstoreFilled, AlignLeftOutlined, OrderedListOutlined, SoundOutlined, FileWordOutlined, TranslationOutlined } from "@ant-design/icons";
+import { AppstoreFilled, AlignLeftOutlined, OrderedListOutlined, SoundOutlined, FileWordOutlined, TranslationOutlined, DatabaseOutlined } from "@ant-design/icons";
 import React from "react";
 import { useTranslation } from "@/i18n/useTranslation";
 
 import { AiSection, DefaultModelSection, PromptSection, SentenceProcessingSection, TTSSection, WordProcessingSection } from "./components";
 import TranslationSection from "./components/TranslationSection";
+import TranslationCache from "./components/TranslationCache";
+import BookTranslationManager from "./components/BookTranslationManager";
 
 const { Sider, Content } = Layout;
 
@@ -53,6 +55,18 @@ export default function Setting() {
       icon: <TranslationOutlined style={{ fontSize: 24 }} />,
       label: "翻译设置",
       content: <TranslationSection />
+    },
+    {
+      key: 'translationCache',
+      icon: <DatabaseOutlined style={{ fontSize: 24 }} />,
+      label: "翻译缓存",
+      content: <TranslationCache />
+    },
+    {
+      key: 'bookTranslation',
+      icon: <FileWordOutlined style={{ fontSize: 24 }} />,
+      label: "书籍翻译管理",
+      content: <BookTranslationManager />
     },
     {
       key: 'tts',
